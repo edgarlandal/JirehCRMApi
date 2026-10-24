@@ -1,0 +1,21 @@
+# Local configuration and Python environments
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+env/
+
+# Generated caches and reports
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.log
+
+# Local database backups
+*.dump
+

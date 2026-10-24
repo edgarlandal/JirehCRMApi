@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jireh_crm_api_postgres
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-joblist}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - internal_network
+  redis:
+    image: redis:7-alpine
+    container_name: jireh_crm_api_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal_network
+
+
+  api:
+    image: jireh-crm-api:local
+    build: &api_build
+      context: .
+      dockerfile: Dockerfile
+    container_name: jireh_crm_api
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./migrations:/app/migrations
+    environment: &api_environment
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:?Set DB_USER in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_NAME: ${DB_NAME:?Set DB_NAME in .env}
+      ALLOWED_ORIGINS: '${ALLOWED_ORIGINS:-["http://localhost:3000","http://localhost:5173"]}'
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_network
+
+  # Herramienta de desarrollo: solo se inicia cuando se solicita explícitamente.
+  migrate:
+    image: jireh-crm-api:local
+    build: *api_build
+    profiles: ["tools"]
+    restart: "no"
+    working_dir: /app
+    entrypoint: ["alembic"]
+    command: ["upgrade", "head"]
+    env_file:
+      - .env
+    environment: *api_environment
+    volumes:
+      - ./app:/app/app:ro
+      - ./migrations:/app/migrations
+      - ./alembic.ini:/app/alembic.ini:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal_network
+
+volumes:
+  postgres_data:
+    driver: local
+    name: jireh_crm_api_postgres_data
+  redis_data:
+    driver: local
+    name: jireh_crm_api_redis_data
+
+networks:
+  internal_network:
+    driver: bridge
