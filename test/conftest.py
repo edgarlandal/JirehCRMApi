@@ -4,16 +4,21 @@ from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event
+from sqlalchemy import event, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 # Test configuration must never connect to the application's database or Redis.
 for key, value in {
-    "DB_HOST": "127.0.0.1", "DB_PORT": "5432", "DB_NAME": "joblist_test",
-    "DB_USER": "test", "DB_PASSWORD": "test",
+    "DB_HOST": "127.0.0.1",
+    "DB_PORT": "5432",
+    "DB_NAME": "joblist_test",
+    "DB_USER": "test",
+    "DB_PASSWORD": "test",
     "JWT_SECRET_KEY": "test-only-secret-key-with-at-least-32-characters",
-    "REDIS_URL": "memory://", "DEBUG": "false",
+    "REDIS_URL": "memory://",
+    "DEBUG": "false",
 }.items():
     os.environ[key] = value
 
@@ -26,6 +31,26 @@ from app.models.user import User, UserRole
 
 @pytest_asyncio.fixture
 async def engine_test():
+    postgres_url = os.environ.get("CRM_TEST_DATABASE_URL")
+    if postgres_url:
+        url = make_url(postgres_url)
+        if url.drivername != "postgresql+asyncpg" or not (
+            url.database or ""
+        ).startswith("crm_verify_"):
+            raise ValueError(
+                "CRM PostgreSQL tests require an isolated crm_verify_* database"
+            )
+        engine = create_async_engine(url)
+        try:
+            # Schema is created exclusively by Alembic in verify_crm_migration.
+            async with engine.begin() as conn:
+                tables = ", ".join(f'"{name}"' for name in Base.metadata.tables)
+                await conn.execute(text(f"TRUNCATE TABLE {tables} CASCADE"))
+            yield engine
+        finally:
+            await engine.dispose()
+        return
+
     engine = create_async_engine("sqlite+aiosqlite://", poolclass=StaticPool)
 
     @event.listens_for(engine.sync_engine, "connect")
@@ -58,7 +83,9 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_async_db] = override_db
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
             yield ac
     finally:
         app.dependency_overrides.clear()
@@ -67,8 +94,14 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def test_user(db_session):
-    user = User(email="test@example.com", hashed_password=hash_password("Password123!"),
-                firstname="Test", lastname="User", role=UserRole.USER, is_active=True)
+    user = User(
+        email="test@example.com",
+        hashed_password=hash_password("Password123!"),
+        firstname="Test",
+        lastname="User",
+        role=UserRole.USER,
+        is_active=True,
+    )
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
@@ -77,8 +110,14 @@ async def test_user(db_session):
 
 @pytest_asyncio.fixture
 async def admin_user(db_session):
-    user = User(email="admin@example.com", hashed_password=hash_password("AdminPassword123!"),
-                firstname="Admin", lastname="User", role=UserRole.ADMIN, is_active=True)
+    user = User(
+        email="admin@example.com",
+        hashed_password=hash_password("AdminPassword123!"),
+        firstname="Admin",
+        lastname="User",
+        role=UserRole.ADMIN,
+        is_active=True,
+    )
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
@@ -104,7 +143,9 @@ def admin_token(admin_user):
 
 @pytest_asyncio.fixture
 async def refresh_token_string(client, test_user):
-    response = await client.post("/api/v1/auth/login", data={
-        "username": test_user.email, "password": "Password123!"})
+    response = await client.post(
+        "/api/v1/auth/login",
+        data={"username": test_user.email, "password": "Password123!"},
+    )
     assert response.status_code == 200
     return response.json()["refresh_token"]

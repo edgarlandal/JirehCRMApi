@@ -28,7 +28,7 @@ python -m pip install -r requirements-dev.txt
 
 ## Migraciones
 
-La copia incluye una migración inicial nueva, independiente del historial del proyecto original. Crea únicamente `users`, `refresh_token` y `alembic_version`.
+La migración inicial crea `users`, `refresh_token` y `alembic_version`. La revisión `c7a1e4b92063` añade las siete tablas del CRM y sus enums sin alterar las tablas existentes. Consulta [la documentación del CRM](docs/CRM.md) para relaciones, permisos, estados de tickets y verificación en PostgreSQL.
 
 Con PostgreSQL configurado en `.env`:
 
@@ -95,3 +95,7 @@ python -m pytest scripts/security_probes.py -q
 ## Variables de entorno
 
 `.env.example` enumera los nombres utilizados por la configuración de la aplicación. Conserva los nombres originales, incluido `ENVIROMENT`. Los valores que empiezan por `REPLACE_WITH_` son marcadores y deben cambiarse antes de ejecutar servicios.
+
+## CRM interno
+
+El CRM incluye modelos, esquemas, repositorios, servicios, migraciones y endpoints autenticados para clientes, contactos, catálogo de servicios, interacciones, citas, tickets y comentarios. Las rutas existentes se conservan. Los nuevos endpoints están bajo `/api/v1` y se documentan en `/docs`. Véase [docs/CRM.md](docs/CRM.md) para rutas, permisos y comandos Docker de migración y pruebas.

@@ -1,9 +1,10 @@
 import enum
 import uuid
 from datetime import datetime, timezone
+
 from sqlalchemy import Boolean, DateTime, Enum, Index, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -60,3 +61,62 @@ class User(Base):
     )
 
     __table_args__ = (Index("idx_users_email_is_active", "email", "is_active"),)
+
+    assigned_customers = relationship(
+        "Customer",
+        back_populates="assigned_to",
+        lazy="raise",
+        passive_deletes="all",
+        foreign_keys="Customer.assigned_to_id",
+    )
+
+    created_customers = relationship(
+        "Customer",
+        back_populates="created_by",
+        lazy="raise",
+        passive_deletes="all",
+        foreign_keys="Customer.created_by_id",
+    )
+
+    interactions = relationship(
+        "Interaction", back_populates="created_by", lazy="raise", passive_deletes="all"
+    )
+
+    assigned_appointments = relationship(
+        "Appointment",
+        back_populates="assigned_to",
+        lazy="raise",
+        passive_deletes="all",
+        foreign_keys="Appointment.assigned_to_id",
+    )
+
+    created_appointments = relationship(
+        "Appointment",
+        back_populates="created_by",
+        lazy="raise",
+        passive_deletes="all",
+        foreign_keys="Appointment.created_by_id",
+    )
+
+    assigned_tickets = relationship(
+        "Ticket",
+        back_populates="assigned_to",
+        lazy="raise",
+        passive_deletes="all",
+        foreign_keys="Ticket.assigned_to_id",
+    )
+
+    created_tickets = relationship(
+        "Ticket",
+        back_populates="created_by",
+        lazy="raise",
+        passive_deletes="all",
+        foreign_keys="Ticket.created_by_id",
+    )
+
+    ticket_comments = relationship(
+        "TicketComment",
+        back_populates="author_user",
+        lazy="raise",
+        passive_deletes="all",
+    )

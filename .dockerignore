@@ -2,6 +2,7 @@
 .env
 .env.*
 .venv
+.codex-test-deps
 venv
 env
 **/__pycache__

@@ -52,4 +52,14 @@ def test_alembic_uses_application_settings(offline):
         assert engine.call_args.args[0] == settings.migration_database_url
     run.assert_called_once()
     assert "refresh_token" in Base.metadata.tables
-    assert set(Base.metadata.tables) == {"users", "refresh_token"}
+    assert set(Base.metadata.tables) == {
+        "users",
+        "refresh_token",
+        "customers",
+        "contacts",
+        "services",
+        "interactions",
+        "appointments",
+        "tickets",
+        "ticket_comments",
+    }

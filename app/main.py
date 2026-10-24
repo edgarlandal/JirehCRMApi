@@ -9,6 +9,15 @@ from slowapi.errors import RateLimitExceeded
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.routes import admin, auth, healthy, users
+from app.api.routes import (
+    appointments,
+    contacts,
+    customers,
+    interactions,
+    services,
+    ticket_comments,
+    tickets,
+)
 from app.core.config import settings
 from app.core.error_handlers import register_exception_handler
 from app.core.middleware import (
@@ -56,6 +65,13 @@ def create_app():
     api_router.include_router(auth.router)
     api_router.include_router(admin.router)
     api_router.include_router(users.router)
+    api_router.include_router(customers.router)
+    api_router.include_router(contacts.router)
+    api_router.include_router(services.router)
+    api_router.include_router(interactions.router)
+    api_router.include_router(appointments.router)
+    api_router.include_router(tickets.router)
+    api_router.include_router(ticket_comments.router)
     app.include_router(api_router)
 
     return app

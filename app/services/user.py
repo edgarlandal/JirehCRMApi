@@ -2,12 +2,14 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from loguru import logger
+from sqlalchemy.exc import IntegrityError
 
 from app.core.security import hash_password
 from app.models.user import User, UserRole
 from app.repositories.user import UserRepository
 from app.schemas.pagination import PaginateResponse, PaginationParams
 from app.schemas.user import UserAdminUpdate, UserCreate, UserProfileUpdate, UserReponse
+from app.services.crm_base import integrity_conflict
 
 
 class UserService:
@@ -53,7 +55,10 @@ class UserService:
 
     async def delete_user(self, user_id: UUID) -> None:
         user = await self.get_user_by_id(user_id)
-        await self.user_repo.delete(user)
+        try:
+            await self.user_repo.delete(user)
+        except IntegrityError as exc:
+            integrity_conflict(exc)
 
     async def get_users(self, params: PaginationParams) -> PaginateResponse:
         users, total = await self.user_repo.get_all(

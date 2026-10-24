@@ -49,7 +49,7 @@ class UserRepository:
             await self.db.rollback()
             raise
 
-    async def get_by_email(self, email: UUID) -> User | None:
+    async def get_by_email(self, email: str) -> User | None:
         try:
             res = await self.db.execute(select(User).where(User.email == email))
             return res.scalar_one_or_none()
@@ -59,7 +59,8 @@ class UserRepository:
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         try:
-            res = await self.db.execute(select(User).where(User.id == UUID(user_id)))
+            normalized_id = user_id if isinstance(user_id, UUID) else UUID(user_id)
+            res = await self.db.execute(select(User).where(User.id == normalized_id))
             return res.scalars().first()
         except SQLAlchemyError:
             await self.db.rollback()
